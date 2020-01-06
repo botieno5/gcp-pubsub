@@ -1,0 +1,129 @@
+//cloudshell
+====================================
+
+#creat a topic
+>gcloud pubsub topics create spikey_bugs
+
+>gcloud pubsub topics list
+
+#delete a topic. note that this does not delete the subscriptions under the topic.
+>gcloud pubsub topics delete spike_bugs
+
+
+
+#create 2 subscriptions
+>gcloud pubsub subscriptions create --topic spikey_bugs --ack-deadline=60 spikey_bugs_dev_subscription
+>gcloud pubsub subscriptions create --topic spikey_bugs --ack-deadline=60 spikey_bugs_reports_subscription
+
+>gcloud pubsub subscriptions list
+>gcloud pubsub subscriptions list spikey_bugs #list subscriptions in a topic
+
+#publish a message to the topic
+>gcloud pubsub topics publish spikey_bugs --message "Tester 1:problem editing number of items in the cart."
+
+#pull from the topic
+>gcloud pubsub subscriptions pull --auto-ack spikey_bugs_dev_subscription
+
+#note: after a pull by one subscriber,the message is deleted from the subscription queue, unless you specify 'keep the message after ack'
+
+>gcloud pubsub subscriptions pull --auto-ack spikey_bugs_reports_subscription
+//this pulls the same message since the subscription is different from the first request.
+
+#if you dont specify --auto-ack flag, pubsub will keep trying to send the message every (--ack-deadline) interval
+with an ack ID
+
+#to allow pusub remove the message from the subscsription queue, you must ack the receipt of the message with the ack ID
+
+>gcloud pubsub subscriptions ack spikey_bugs_dev_subscription --ack-ids=xxxxxxxxxxxx
+
+#delete subscriptions
+>gcloud pubsub subscriptions delete spikey_bugs_reports_subscription
+
+
+##replaying deleted messages using 'seek' feature
+=================================================
+#can either use snapshots or alter acknowledgement time of the messages(seek to timestamp)
+#seek to timestamp is only possible if you enable 'retain acknowledged messages'
+#note: snapshot maintains state of subscsription at the time of creation AND ALSO maintains a copy of the state of the subscription from time
+of creation onwards.
+
+#create topic
+>gcloud beta pubsub topics create spikey_customer_service
+#create subscription to the topic
+>gcloud beta pubsub subscriptions create spikey_customer_sub1 --topic spikey_customer_service --ack-deadline=10
+#publish a message to the topic
+>gcloud beta pubsub topics publish spikey_customer_service --message 'issue 1:user cannot login from newyork'
+
+#pull the message with --auto-ack, to ensure it is deleted from the subscription queue.
+>gcloud beta subscriptions pull --auto-ack spikey_customer_sub1
+
+#publish a second message to the topic spikey_customer_service
+>gcloud beta pubsub topics publish spikey_customer_service --message 'issue 2:change of delivery access'
+
+#create a snapshot for this message before it is pulled.all messages acknowledged at this point in time are remembered.
+>gcloud beta pubsub snapshots create customer_service_snapshot --subscription=spikey_customer_sub1
+
+#since snapshots keep state of subscription from creation time onwards, the snapshot should apply to subsequently published messages
+#publish issue number 3 and 4
+>gcloud beta pubsub topics publish spikey_customer_service --message 'issue 3:edit the size of ordered item.'
+>gcloud beta pubsub topics publish spikey_customer_service --message 'issue 4:inquiry about an out-of stock item.'
+
+#test by pulling the messages on the 'snapshoted' subscription with auto-ack, then replay.
+
+#run this 3 times to pull all the messages, fourth call to this command outputs no message
+>gcloud beta pubsub pull --auto-ack spikey_customer_sub1
+
+#now backup the messages deleted from the subscription queue by using 'seek' utility into the snapshot
+>gcloud beta pubsub subscriptions seek spikey_customer_sub1 --snapshot=customer_service_snapshot
+
+#replay all the messages that were unacknowledged or created when snapshot was created(messsages 2,3 and 4)
+>gcloud beta pubsub pull --auto-ack spikey_customer_sub1
+>gcloud beta pubsub pull --auto-ack spikey_customer_sub1
+>gcloud beta pubsub pull --auto-ack spikey_customer_sub1
+
+#after all are played with auto-ack, you must seek again to re-play them.
+
+#create another subscription
+>gcloud beta pubsub subscriptions create spikey_customer_sub2 --topic spikey_customer_service --ack-deadline=10
+
+#you can apply the snapshot to this new subscription using web console by selecting the snapshot then choose 'apply to subscription' option,
+#then all the messages after snapshot creation will be replayed to subscription-2
+
+>gcloud beta pubsub pull --auto-ack spikey_customer_sub2
+>gcloud beta pubsub pull --auto-ack spikey_customer_sub2
+>gcloud beta pubsub pull --auto-ack spikey_customer_sub2
+
+
+//seek to timestamp
+==========================
+#only possible if you enable 'retain acknowledged message'
+
+>gcloud beta pubsub subscriptions update update spikey_customer_sub1 --retain-acked-messages
+
+#publish message 5
+>gcloud beta pubsub topics publish spikey_customer_service --message 'issue 5:mobile app stuck at startup screen.'
+
+>gcloud beta pubsub pull --auto-ack spikey_customer_sub1
+
+#only message 5 is left to be pulled.
+
+#create time format
+>TS_FORMAT=%y-%m-%dT%H:%M:%SZ
+
+#seek to timestamp, all messages received in the last 10min will be regarded as unacknowledged
+>gcloud beta pubsub subscriptions seek spikey_customer_sub1 --time=$(date -u -d '-10 min' +$TS_FORMAT)
+
+#NOTE:seeking to a future time will regard some messages received within the seek time to be ignored ie to be concidered acknowledged.
+
+
+
+
+
+
+
+
+
+
+
+
+
