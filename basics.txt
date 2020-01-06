@@ -1,0 +1,58 @@
+//initialize the SDK with a google account and a project name and a region
+>gcloud init
+
+//login to gcloud SDK(you are redirected to a browser window to login using your google account)
+>gcloud auth login
+
+//SDK info
+>gcloud info
+
+//account config info(account name,project name) ie SDK config properties
+>gcloud config list
+
+//To list accounts whose credentials are stored on the local system
+>gcloud auth list
+
+//set a project or change projects
+>gcloud config set project project_ID
+
+//list all the projects for the authenticated account
+>gcloud projects list
+
+//command info/help
+>gcloud config --help
+>gcloud components --help
+>gcloud [command_name] --help
+
+//update components
+>gcloud components update
+
+
+NOTE:
+All GCP functions are in the beta version.
+you must install the beta components.
+But later versions of SDK support functions without installing beta
+
+>gcloud components install beta
+
+
+cloud Functions commands
+=====================================
+>gcloud beta functions list
+>gcloud beta functions describe {function_name}
+>gcloud beta functions --help
+
+
+//calling a function and passing some data
+>gcloud beta functions call function_name --data='{"data":"data_content"'
+
+//check the logs after calling the function
+>gcloud beta functions logs read
+
+
+
+
+
+
+
+
